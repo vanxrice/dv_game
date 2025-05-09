@@ -583,7 +583,18 @@ function render() {
         // ctx.drawImage(player.sprite, -player.width / 2, -player.height / 2, player.width, player.height);
         // ctx.restore();
         // For now, drawing without rotation:
-        ctx.drawImage(player.sprite, player.x, player.y, player.width, player.height);
+        // ctx.drawImage(player.sprite, player.x, player.y, player.width, player.height);
+
+        // Draw player sprite with mirroring based on lastDx
+        ctx.save();
+        if (player.lastDx > 0) { // Facing right, mirror the sprite
+            ctx.translate(player.x + player.width, player.y); // Move to the right edge of the sprite
+            ctx.scale(-1, 1); // Flip horizontally
+            ctx.drawImage(player.sprite, 0, 0, player.width, player.height);
+        } else { // Facing left or no horizontal movement, draw normally
+            ctx.drawImage(player.sprite, player.x, player.y, player.width, player.height);
+        }
+        ctx.restore();
     } else {
         // Fallback drawing if sprite hasn't loaded (optional)
         ctx.fillStyle = 'blue'; // Placeholder color
