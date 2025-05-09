@@ -45,6 +45,8 @@ let player = {
     width: TILE_SIZE,
     height: TILE_SIZE,
     // color: 'blue', // No longer used for player visual
+    sprite: null,
+    spriteLoaded: false,
     speed: 5,
     maxHealth: 10,
     health: 10, // Will be set by resetGame
@@ -143,6 +145,25 @@ function init() {
     window.addEventListener('resize', resizeCanvasAndGameLayout); // Add resize listener
 
     resetGame(); // Initialize game state
+
+    // Initialize and load player sprite
+    player.sprite = new Image();
+    player.sprite.onload = () => {
+        player.spriteLoaded = true;
+        console.log("Player sprite loaded.");
+        // Optionally, adjust player.width and player.height here if sprite has different intrinsic dimensions
+        // For example:
+        // player.width = player.sprite.naturalWidth;
+        // player.height = player.sprite.naturalHeight;
+        // Or scale them:
+        // player.width = TILE_SIZE * (player.sprite.naturalWidth / some_base_sprite_width);
+        // player.height = TILE_SIZE * (player.sprite.naturalHeight / some_base_sprite_height);
+    };
+    player.sprite.onerror = () => {
+        console.error("Error loading player sprite.");
+    };
+    player.sprite.src = 'player_sprite.png'; // Ensure 'player_sprite.png' is in the correct path
+
     gameLoop(); // Start the game loop
 }
 
@@ -549,28 +570,29 @@ function render() {
         ctx.fill();
     }
 
-    // Draw player (Robot Vacuum)
-    const centerX = player.x + player.width / 2;
-    const centerY = player.y + player.height / 2;
-    const radius = player.width / 2; // Assuming player.width and player.height are similar for a round vacuum
+    // Draw player (Robot Vacuum Sprite)
+    if (player.spriteLoaded) {
+        // To draw the sprite centered like the old circle, you might need to adjust x, y
+        // or ensure player.x, player.y are already where the top-left of the sprite should be.
+        // The current player.x, player.y are top-left.
+        // If your sprite needs rotation based on player.lastDx, player.lastDy:
+        // const angle = Math.atan2(player.lastDy, player.lastDx);
+        // ctx.save();
+        // ctx.translate(player.x + player.width / 2, player.y + player.height / 2);
+        // ctx.rotate(angle);
+        // ctx.drawImage(player.sprite, -player.width / 2, -player.height / 2, player.width, player.height);
+        // ctx.restore();
+        // For now, drawing without rotation:
+        ctx.drawImage(player.sprite, player.x, player.y, player.width, player.height);
+    } else {
+        // Fallback drawing if sprite hasn't loaded (optional)
+        ctx.fillStyle = 'blue'; // Placeholder color
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.fillText("?", player.x + player.width/2, player.y + player.height/2 + 5);
 
-    // Main body of the vacuum (dark grey)
-    ctx.fillStyle = '#444444'; // Dark grey
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Top "sensor" or "lid" detail (slightly lighter grey)
-    ctx.fillStyle = '#666666'; // Lighter grey
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius * 0.6, 0, Math.PI * 2);
-    ctx.fill();
-
-    // A small "light" or "indicator" (optional, bright color)
-    ctx.fillStyle = '#FFD700'; // Gold/Yellow light
-    ctx.beginPath();
-    ctx.arc(centerX, centerY - radius * 0.3, radius * 0.15, 0, Math.PI * 2);
-    ctx.fill();
+    }
 
     // Draw Sword Attack
     if (player.isAttacking) {
