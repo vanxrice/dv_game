@@ -15,6 +15,23 @@ let isPaused = false;
 let mouseX = 0;
 let mouseY = 0;
 
+// Touch State
+let touchStartX = 0;
+let touchStartY = 0;
+let currentTouchX = 0;
+let currentTouchY = 0;
+let isTouchActive = false;
+const TOUCH_MOVE_THRESHOLD = TILE_SIZE * 0.3; // Sensitivity for virtual joystick
+
+// Pause Button Area
+const PAUSE_BUTTON_SIZE = 50; // px
+const pauseButtonArea = {
+    x: GAME_WIDTH - PAUSE_BUTTON_SIZE - 10, // 10px padding from edge
+    y: 10,
+    width: PAUSE_BUTTON_SIZE,
+    height: PAUSE_BUTTON_SIZE
+};
+
 // Player state (placeholders)
 let player = {
     x: GAME_WIDTH / 2,
@@ -111,6 +128,12 @@ function init() {
     document.addEventListener('keyup', handleKeyUp);
     canvas.addEventListener('mousemove', handleMouseMove);
 
+    // Touch event listeners
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false }); // Treat cancel like end
+
     resetGame(); // Initialize game state
     gameLoop(); // Start the game loop
 }
@@ -147,6 +170,68 @@ function handleMouseMove(event) {
     mouseY = event.clientY - rect.top;
 }
 
+function getTouchPos(canvas, touchEvent) {
+    const rect = canvas.getBoundingClientRect();
+    // Use the first touch point
+    const touch = touchEvent.touches[0];
+    return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+    };
+}
+
+function handleTouchStart(event) {
+    event.preventDefault();
+    const pos = getTouchPos(canvas, event);
+
+    // Check for pause button tap
+    if (pos.x >= pauseButtonArea.x && pos.x <= pauseButtonArea.x + pauseButtonArea.width &&
+        pos.y >= pauseButtonArea.y && pos.y <= pauseButtonArea.y + pauseButtonArea.height) {
+        isPaused = !isPaused;
+        console.log(isPaused ? "Game Paused (Touch)" : "Game Resumed (Touch)");
+        isTouchActive = false; // Ensure this touch doesn't trigger movement
+        return;
+    }
+
+    // Unpause with any tap if game is paused (and not the pause button itself which toggles)
+    if (isPaused) {
+        isPaused = false;
+        console.log("Game Resumed by tap");
+        isTouchActive = false;
+        return;
+    }
+    
+    if (gameOver) return; // Don't process game interaction touches if game over
+
+    isTouchActive = true;
+    touchStartX = pos.x;
+    touchStartY = pos.y;
+    currentTouchX = pos.x;
+    currentTouchY = pos.y;
+    mouseX = pos.x; // Update mouseX/Y for aiming
+    mouseY = pos.y;
+}
+
+function handleTouchMove(event) {
+    event.preventDefault();
+    if (!isTouchActive || isPaused || gameOver) return;
+
+    const pos = getTouchPos(canvas, event);
+    currentTouchX = pos.x;
+    currentTouchY = pos.y;
+    mouseX = pos.x; // Update mouseX/Y for aiming
+}
+
+function handleTouchEnd(event) {
+    event.preventDefault();
+    // isTouchActive is reset regardless of whether it was a game touch or UI touch
+    // because the specific touch interaction has ended.
+    isTouchActive = false; 
+    // Note: We don't reset keys.w/a/s/d here as they are for keyboard.
+    // Movement logic in update() will stop using touch input when isTouchActive is false.
+}
+
+
 // Update game state
 function update() {
     if (isPaused) {
@@ -162,34 +247,65 @@ function update() {
     }
 
     // Player movement
-    let moveX = 0;
-    let moveY = 0;
-    if (keys.w || keys.ArrowUp) {
-        moveY -= player.speed;
-    }
-    if (keys.s || keys.ArrowDown) {
-        moveY += player.speed;
-    }
-    if (keys.a || keys.ArrowLeft) {
-        moveX -= player.speed;
-    }
-    if (keys.d || keys.ArrowRight) {
-        moveX += player.speed;
-    }
+    let dx = 0; // Desired direction x (-1, 0, 1)
+    let dy = 0; // Desired direction y (-1, 0, 1)
 
-    player.x += moveX;
-    player.y += moveY;
+    // Keyboard input
+    if (keys.w || keys.ArrowUp) dy = -1;
+    else if (keys.s || keys.ArrowDown) dy = 1; // Use else if to prevent cancelling out if both pressed
+    
+    if (keys.a || keys.ArrowLeft) dx = -1;
+    else if (keys.d || keys.ArrowRight) dx = 1; // Use else if
 
-    if (moveX !== 0 || moveY !== 0) {
-        // Normalize last direction vector for consistent attack orientation
-        const magnitude = Math.hypot(moveX, moveY);
-        // Update lastDx, lastDy only if there was actual movement, 
-        // and normalize it for consistent direction vector.
-        if (magnitude > 0) { 
-            player.lastDx = moveX / magnitude;
-            player.lastDy = moveY / magnitude;
+    // Touch input (if active, it determines movement direction)
+    if (isTouchActive) {
+        const deltaX = currentTouchX - touchStartX;
+        const deltaY = currentTouchY - touchStartY;
+
+        let touchDx = 0;
+        let touchDy = 0;
+
+        if (Math.abs(deltaX) > TOUCH_MOVE_THRESHOLD) {
+            touchDx = (deltaX > 0 ? 1 : -1);
+        }
+        if (Math.abs(deltaY) > TOUCH_MOVE_THRESHOLD) {
+            touchDy = (deltaY > 0 ? 1 : -1);
+        }
+        
+        // If touch provides input, it takes precedence
+        if (touchDx !== 0 || touchDy !== 0) {
+            dx = touchDx;
+            dy = touchDy;
+        } else { // If touch is active but below threshold, player doesn't move via touch
+            dx = 0; // Override keyboard if touch is active but not moving
+            dy = 0;
         }
     }
+    
+    let finalMoveX = 0;
+    let finalMoveY = 0;
+
+    if (dx !== 0 || dy !== 0) {
+        if (dx !== 0 && dy !== 0) { // Moving diagonally
+            finalMoveX = (dx * player.speed) / Math.SQRT2;
+            finalMoveY = (dy * player.speed) / Math.SQRT2;
+        } else { // Moving cardinally
+            finalMoveX = dx * player.speed;
+            finalMoveY = dy * player.speed;
+        }
+        player.x += finalMoveX;
+        player.y += finalMoveY;
+
+        // Update lastDx, lastDy for attack orientation fallback
+        // Normalize dx, dy to ensure consistent vector for lastDx/lastDy
+        const magnitude = Math.hypot(dx, dy); // dx,dy are -1,0,1 so magnitude is 1 or sqrt(2)
+        if (magnitude > 0) { // Should always be true if dx or dy is non-zero
+            player.lastDx = dx / magnitude;
+            player.lastDy = dy / magnitude;
+        }
+    }
+    // If no movement input (dx=0, dy=0), player.lastDx/lastDy remain from last movement/aim.
+    // The auto-attack logic will prioritize mouseX/mouseY (updated by touch) for aiming.
 
     // Keep player within canvas bounds (simple boundary check)
     if (player.x < 0) player.x = 0;
@@ -350,7 +466,15 @@ function render() {
         ctx.textAlign = 'center';
         ctx.fillText('PAUSED', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30);
         ctx.font = '24px "Courier New", Courier, monospace';
-        ctx.fillText('Press P, Space, or Enter to Resume', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20);
+        ctx.fillText('Tap screen or Press P, Space, or Enter to Resume', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20);
+        
+        // Draw a visual for the pause button area while paused
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(pauseButtonArea.x, pauseButtonArea.y, pauseButtonArea.width, pauseButtonArea.height);
+        ctx.font = '30px "Courier New", Courier, monospace';
+        ctx.fillText('II', pauseButtonArea.x + pauseButtonArea.width / 2, pauseButtonArea.y + pauseButtonArea.height / 2 + 10);
+
         return; // Don't render the game scene if paused
     }
 
@@ -454,6 +578,16 @@ function render() {
     
     ctx.fillStyle = 'white';
     ctx.fillText(`Health: ${player.health} / ${player.maxHealth}`, 10, healthBarY + healthBarHeight + 15);
+
+    // Draw Pause Button (always visible when not game over and not paused)
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(pauseButtonArea.x, pauseButtonArea.y, pauseButtonArea.width, pauseButtonArea.height);
+    ctx.font = '30px "Courier New", Courier, monospace';
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'center';
+    ctx.fillText('II', pauseButtonArea.x + pauseButtonArea.width / 2, pauseButtonArea.y + pauseButtonArea.height / 2 + 10); // Adjust Y for vertical centering
+
     } // End of the "else" block for non-gameOver rendering
 }
 
