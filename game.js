@@ -14,8 +14,27 @@ let player = {
     width: TILE_SIZE,
     height: TILE_SIZE,
     color: 'blue', // Placeholder color
-    speed: 5
+    speed: 5,
+    level: 1,
+    xp: 0,
+    xpToNextLevel: 10 // XP needed for the first level up
 };
+
+// Particle system
+let particles = [];
+const MAX_PARTICLES = 30;
+const PARTICLE_SPAWN_RATE = 0.05; // Chance to spawn a particle each frame
+const PARTICLE_XP_VALUE = 1;
+
+function createParticle() {
+    return {
+        x: Math.random() * GAME_WIDTH,
+        y: Math.random() * GAME_HEIGHT,
+        radius: Math.random() * 2 + 2, // Random size between 2 and 4
+        color: `hsl(${Math.random() * 60 + 180}, 100%, 75%)`, // Shades of blue/cyan/purple for "bright"
+        xpValue: PARTICLE_XP_VALUE
+    };
+}
 
 // Input handling
 const keys = {
@@ -74,6 +93,37 @@ function update() {
     if (player.x + player.width > GAME_WIDTH) player.x = GAME_WIDTH - player.width;
     if (player.y < 0) player.y = 0;
     if (player.y + player.height > GAME_HEIGHT) player.y = GAME_HEIGHT - player.height;
+
+    // Particle spawning
+    if (particles.length < MAX_PARTICLES && Math.random() < PARTICLE_SPAWN_RATE) {
+        particles.push(createParticle());
+    }
+
+    // Collision detection: player vs particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const particle = particles[i];
+        // Simple AABB collision for player (rect) and particle (circle treated as point for simplicity)
+        // A more accurate circle-rect collision would be better but this is a start
+        const playerCenterX = player.x + player.width / 2;
+        const playerCenterY = player.y + player.height / 2;
+        
+        // Check if particle center is within player bounds
+        if (particle.x > player.x && particle.x < player.x + player.width &&
+            particle.y > player.y && particle.y < player.y + player.height) {
+            
+            player.xp += particle.xpValue;
+            particles.splice(i, 1); // Remove collected particle
+
+            // Check for level up
+            if (player.xp >= player.xpToNextLevel) {
+                player.level++;
+                player.xp -= player.xpToNextLevel; // Or player.xp = 0 for no carry-over
+                player.xpToNextLevel = Math.floor(player.xpToNextLevel * 1.5); // Increase XP needed for next level
+                console.log(`Level Up! Reached level ${player.level}. Next level at ${player.xpToNextLevel} XP.`);
+                // You could add a visual effect for level up here
+            }
+        }
+    }
 }
 
 // Render game
@@ -82,24 +132,39 @@ function render() {
     ctx.fillStyle = '#111'; // Background color from CSS
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
+    // Draw particles
+    for (const particle of particles) {
+        ctx.fillStyle = particle.color;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
     // Draw player (simple rectangle for now)
     ctx.fillStyle = player.color;
     ctx.fillRect(player.x, player.y, player.width, player.height);
 
-    // Placeholder for dynamic graphics and bright effects (to be added later)
-    // Example: draw some bright particles
-    for (let i = 0; i < 5; i++) {
-        ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 75%)`; // Bright, random color
-        ctx.beginPath();
-        ctx.arc(
-            Math.random() * GAME_WIDTH,
-            Math.random() * GAME_HEIGHT,
-            Math.random() * 3 + 1, // Small radius
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-    }
+    // Draw UI (Level and XP)
+    ctx.fillStyle = 'white';
+    ctx.font = '16px "Courier New", Courier, monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Level: ${player.level}`, 10, 25);
+    
+    // XP Bar
+    const xpBarWidth = 200;
+    const xpBarHeight = 10;
+    const xpBarX = 10;
+    const xpBarY = 35;
+    const currentXpProgress = (player.xp / player.xpToNextLevel) * xpBarWidth;
+
+    ctx.strokeStyle = '#888'; // Border for XP bar
+    ctx.strokeRect(xpBarX, xpBarY, xpBarWidth, xpBarHeight);
+    
+    ctx.fillStyle = '#0f0'; // Fill for XP progress
+    ctx.fillRect(xpBarX, xpBarY, currentXpProgress, xpBarHeight);
+    
+    ctx.fillStyle = 'white';
+    ctx.fillText(`XP: ${player.xp} / ${player.xpToNextLevel}`, 10, xpBarY + xpBarHeight + 15);
 }
 
 // Main game loop
