@@ -7,6 +7,11 @@ const TILE_SIZE = 32; // Example tile size for pixel art
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 
+// Game State
+let gameOver = false;
+let gameRestartTimer = 0;
+const GAME_RESTART_DELAY = 180; // 3 seconds at 60fps
+
 // Player state (placeholders)
 let player = {
     x: GAME_WIDTH / 2,
@@ -15,6 +20,8 @@ let player = {
     height: TILE_SIZE,
     // color: 'blue', // No longer used for player visual
     speed: 5,
+    maxHealth: 10,
+    health: 10, // Will be set by resetGame
     level: 1,
     xp: 0,
     xpToNextLevel: 10, // XP needed for the first level up
@@ -46,7 +53,8 @@ function createParticle() {
         y: Math.random() * GAME_HEIGHT,
         radius: Math.random() * 3 + 3, // Sludge particles can be a bit larger
         color: `hsl(${Math.random() * 40 + 70}, ${Math.random() * 30 + 40}%, ${Math.random() * 20 + 20}%)`, // Murky greens/browns
-        xpValue: PARTICLE_XP_VALUE
+        xpValue: PARTICLE_XP_VALUE,
+        speed: Math.random() * 0.75 + 0.25 // Sludge speed
     };
 }
 
@@ -83,12 +91,46 @@ function init() {
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
 
-    console.log("Game initialized");
+    resetGame(); // Initialize game state
     gameLoop(); // Start the game loop
+}
+
+function resetGame() {
+    player.x = GAME_WIDTH / 2 - player.width / 2;
+    player.y = GAME_HEIGHT / 2 - player.height / 2;
+    player.health = player.maxHealth;
+    player.level = 1;
+    player.xp = 0;
+    player.xpToNextLevel = 10;
+    player.isAttacking = false;
+    player.attackTimer = 0;
+    player.attackCooldownTimer = 0;
+    player.lastDx = 1; // Default facing right
+    player.lastDy = 0;
+
+    particles = [];
+    // Spawn some initial particles
+    for(let i = 0; i < MAX_PARTICLES / 2; i++) {
+        if (particles.length < MAX_PARTICLES) {
+            particles.push(createParticle());
+        }
+    }
+
+    gameOver = false;
+    gameRestartTimer = 0;
+    console.log("Game Reset/Started.");
 }
 
 // Update game state
 function update() {
+    if (gameOver) {
+        gameRestartTimer--;
+        if (gameRestartTimer <= 0) {
+            resetGame(); // This will set gameOver to false
+        }
+        return; // Skip game logic updates while game over screen is shown
+    }
+
     // Player movement
     let moveX = 0;
     let moveY = 0;
@@ -128,6 +170,19 @@ function update() {
     // Particle spawning
     if (particles.length < MAX_PARTICLES && Math.random() < PARTICLE_SPAWN_RATE) {
         particles.push(createParticle());
+    }
+
+    // Sludge Particle Movement (Attraction to Player)
+    const playerCenterXForSludge = player.x + player.width / 2;
+    const playerCenterYForSludge = player.y + player.height / 2;
+    for (const particle of particles) {
+        const dx = playerCenterXForSludge - particle.x;
+        const dy = playerCenterYForSludge - particle.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > particle.radius) { // Move if not already on top / very close
+            particle.x += (dx / dist) * particle.speed;
+            particle.y += (dy / dist) * particle.speed;
+        }
     }
 
     // Attack Cooldown
@@ -203,28 +258,34 @@ function update() {
     }
 
     // Collision detection: player (vacuum body) vs particles
+    const playerBodyCenterX = player.x + player.width / 2;
+    const playerBodyCenterY = player.y + player.height / 2;
+    const playerBodyRadius = player.width / 2;
+
     for (let i = particles.length - 1; i >= 0; i--) {
         const particle = particles[i];
-        // Simple AABB collision for player (rect) and particle (circle treated as point for simplicity)
-        // A more accurate circle-rect collision would be better but this is a start
-        const playerCenterX = player.x + player.width / 2;
-        const playerCenterY = player.y + player.height / 2;
         
-        // Check if particle center is within player bounds
-        if (particle.x > player.x && particle.x < player.x + player.width &&
-            particle.y > player.y && particle.y < player.y + player.height) {
-            
-            player.xp += particle.xpValue;
-            particles.splice(i, 1); // Remove collected particle
+        const distToParticleX = particle.x - playerBodyCenterX;
+        const distToParticleY = particle.y - playerBodyCenterY;
+        const distanceToParticle = Math.hypot(distToParticleX, distToParticleY);
 
-            // Check for level up
-            if (player.xp >= player.xpToNextLevel) {
-                player.level++;
-                player.xp -= player.xpToNextLevel; // Or player.xp = 0 for no carry-over
-                player.xpToNextLevel = Math.floor(player.xpToNextLevel * 1.5); // Increase XP needed for next level
-                console.log(`Level Up! Reached level ${player.level}. Next level at ${player.xpToNextLevel} XP.`);
-                // You could add a visual effect for level up here
+        // Check for collision between player (circle) and particle (circle)
+        if (distanceToParticle < playerBodyRadius + particle.radius) {
+            player.health -= 1; // Sludge deals 1 damage
+            particles.splice(i, 1); // Remove collided particle
+
+            console.log(`Player hit by sludge! Health: ${player.health}`);
+
+            if (player.health <= 0) {
+                player.health = 0; // Prevent health from displaying as negative
+                gameOver = true;
+                gameRestartTimer = GAME_RESTART_DELAY;
+                console.log("Game Over!");
+                // The game over state will be handled at the start of the next update()
+                // and render() will show the game over message.
+                // No need to return here, let the frame finish.
             }
+            // Note: XP is gained via sword, not direct collision that causes damage.
         }
     }
 }
@@ -235,9 +296,22 @@ function render() {
     ctx.fillStyle = '#111'; // Background color from CSS
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    // Draw particles
-    for (const particle of particles) {
-        ctx.fillStyle = particle.color;
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; // Dark overlay
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+        ctx.font = '48px "Courier New", Courier, monospace';
+        ctx.fillStyle = 'red';
+        ctx.textAlign = 'center';
+        ctx.fillText('GAME OVER', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30);
+        
+        ctx.font = '24px "Courier New", Courier, monospace';
+        ctx.fillStyle = 'white';
+        ctx.fillText(`Restarting in ${Math.ceil(gameRestartTimer / 60)}s...`, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20);
+    } else {
+        // Draw particles
+        for (const particle of particles) {
+            ctx.fillStyle = particle.color;
         ctx.beginPath();
         ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -306,6 +380,23 @@ function render() {
     
     ctx.fillStyle = 'white';
     ctx.fillText(`XP: ${player.xp} / ${player.xpToNextLevel}`, 10, xpBarY + xpBarHeight + 15);
+
+    // Draw Health Bar & Text
+    const healthBarWidth = 200;
+    const healthBarHeight = 10;
+    const healthBarX = 10;
+    const healthBarY = xpBarY + xpBarHeight + 20 + 15; // Position below XP info text
+    const currentHealthProgress = (player.health / player.maxHealth) * healthBarWidth;
+
+    ctx.strokeStyle = '#888'; // Border for health bar
+    ctx.strokeRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+    
+    ctx.fillStyle = '#f00'; // Red fill for health progress
+    ctx.fillRect(healthBarX, healthBarY, Math.max(0, currentHealthProgress), healthBarHeight); // Use Math.max to prevent negative width if health < 0
+    
+    ctx.fillStyle = 'white';
+    ctx.fillText(`Health: ${player.health} / ${player.maxHealth}`, 10, healthBarY + healthBarHeight + 15);
+    } // End of the "else" block for non-gameOver rendering
 }
 
 // Main game loop
