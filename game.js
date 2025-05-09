@@ -4,18 +4,24 @@ const ctx = canvas.getContext('2d');
 
 // Game settings (placeholders)
 const TILE_SIZE = 32; // Example tile size for pixel art
-const GAME_WIDTH = 800;
-const GAME_HEIGHT = 600;
+// Logical game dimensions for landscape mode
+const LOGICAL_GAME_WIDTH_LANDSCAPE = 800;
+const LOGICAL_GAME_HEIGHT_LANDSCAPE = 600;
+
+// Current effective game dimensions and layout state
+let currentLogicalGameWidth = LOGICAL_GAME_WIDTH_LANDSCAPE;
+let currentLogicalGameHeight = LOGICAL_GAME_HEIGHT_LANDSCAPE;
+let isPortraitLayout = false;
 
 // Game State
 let gameOver = false;
 let gameRestartTimer = 0;
 const GAME_RESTART_DELAY = 180; // 3 seconds at 60fps
 let isPaused = false;
-let mouseX = 0;
-let mouseY = 0;
+let mouseX = 0; // In logical game coordinates
+let mouseY = 0; // In logical game coordinates
 
-// Touch State
+// Touch State (coordinates will be in logical game space)
 let touchStartX = 0;
 let touchStartY = 0;
 let currentTouchX = 0;
@@ -23,10 +29,10 @@ let currentTouchY = 0;
 let isTouchActive = false;
 const TOUCH_MOVE_THRESHOLD = TILE_SIZE * 0.3; // Sensitivity for virtual joystick
 
-// Pause Button Area
+// Pause Button Area (dynamically positioned)
 const PAUSE_BUTTON_SIZE = 50; // px
-const pauseButtonArea = {
-    x: GAME_WIDTH - PAUSE_BUTTON_SIZE - 10, // 10px padding from edge
+let pauseButtonArea = {
+    x: currentLogicalGameWidth - PAUSE_BUTTON_SIZE - 10,
     y: 10,
     width: PAUSE_BUTTON_SIZE,
     height: PAUSE_BUTTON_SIZE
@@ -34,8 +40,8 @@ const pauseButtonArea = {
 
 // Player state (placeholders)
 let player = {
-    x: GAME_WIDTH / 2,
-    y: GAME_HEIGHT / 2,
+    x: currentLogicalGameWidth / 2,
+    y: currentLogicalGameHeight / 2,
     width: TILE_SIZE,
     height: TILE_SIZE,
     // color: 'blue', // No longer used for player visual
@@ -69,8 +75,8 @@ const PARTICLE_XP_VALUE = 1;
 
 function createParticle() {
     return {
-        x: Math.random() * GAME_WIDTH,
-        y: Math.random() * GAME_HEIGHT,
+        x: Math.random() * currentLogicalGameWidth,
+        y: Math.random() * currentLogicalGameHeight,
         radius: Math.random() * 3 + 3, // Sludge particles can be a bit larger
         color: `hsl(${Math.random() * 40 + 70}, ${Math.random() * 30 + 40}%, ${Math.random() * 20 + 20}%)`, // Murky greens/browns
         xpValue: PARTICLE_XP_VALUE,
@@ -121,8 +127,8 @@ function handleKeyUp(event) {
 
 // Initialize game
 function init() {
-    canvas.width = GAME_WIDTH;
-    canvas.height = GAME_HEIGHT;
+    // Initial setup of canvas and game layout
+    resizeCanvasAndGameLayout(); 
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
@@ -134,13 +140,54 @@ function init() {
     canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
     canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false }); // Treat cancel like end
 
+    window.addEventListener('resize', resizeCanvasAndGameLayout); // Add resize listener
+
     resetGame(); // Initialize game state
     gameLoop(); // Start the game loop
 }
 
+function resizeCanvasAndGameLayout() {
+    const newWindowWidth = window.innerWidth;
+    const newWindowHeight = window.innerHeight;
+
+    isPortraitLayout = newWindowHeight > newWindowWidth;
+
+    if (isPortraitLayout) {
+        currentLogicalGameWidth = LOGICAL_GAME_HEIGHT_LANDSCAPE; // e.g., 600
+        currentLogicalGameHeight = LOGICAL_GAME_WIDTH_LANDSCAPE; // e.g., 800
+    } else {
+        currentLogicalGameWidth = LOGICAL_GAME_WIDTH_LANDSCAPE;
+        currentLogicalGameHeight = LOGICAL_GAME_HEIGHT_LANDSCAPE;
+    }
+
+    // Set canvas internal resolution
+    canvas.width = currentLogicalGameWidth;
+    canvas.height = currentLogicalGameHeight;
+
+    // CSS will scale the canvas element to fit the window via `style.css`
+
+    // Update UI element positions based on new logical dimensions
+    pauseButtonArea.width = PAUSE_BUTTON_SIZE;
+    pauseButtonArea.height = PAUSE_BUTTON_SIZE;
+    if (isPortraitLayout) {
+        // Move pause button to bottom-right for portrait
+        pauseButtonArea.x = currentLogicalGameWidth - PAUSE_BUTTON_SIZE - 10;
+        pauseButtonArea.y = currentLogicalGameHeight - PAUSE_BUTTON_SIZE - 10;
+    } else {
+        // Keep pause button top-right for landscape
+        pauseButtonArea.x = currentLogicalGameWidth - PAUSE_BUTTON_SIZE - 10;
+        pauseButtonArea.y = 10;
+    }
+    
+    // If game is running, player position might need adjustment or boundary checks will handle it.
+    // For simplicity, boundary checks in update() will handle player position.
+    // If resetGame() is called after this, it will use the new logical dimensions.
+    console.log(`Resized. Portrait: ${isPortraitLayout}, Logical: ${currentLogicalGameWidth}x${currentLogicalGameHeight}, Canvas: ${canvas.width}x${canvas.height}`);
+}
+
 function resetGame() {
-    player.x = GAME_WIDTH / 2 - player.width / 2;
-    player.y = GAME_HEIGHT / 2 - player.height / 2;
+    player.x = currentLogicalGameWidth / 2 - player.width / 2;
+    player.y = currentLogicalGameHeight / 2 - player.height / 2;
     player.health = player.maxHealth;
     player.level = 1;
     player.xp = 0;
@@ -166,17 +213,18 @@ function resetGame() {
 
 function handleMouseMove(event) {
     const rect = canvas.getBoundingClientRect();
-    mouseX = event.clientX - rect.left;
-    mouseY = event.clientY - rect.top;
+    // Scale mouse coordinates to logical game coordinates
+    mouseX = (event.clientX - rect.left) * (canvas.width / rect.width);
+    mouseY = (event.clientY - rect.top) * (canvas.height / rect.height);
 }
 
-function getTouchPos(canvas, touchEvent) {
-    const rect = canvas.getBoundingClientRect();
-    // Use the first touch point
+function getTouchPos(canvasDOM, touchEvent) { // Renamed canvas to canvasDOM to avoid conflict with global canvas
+    const rect = canvasDOM.getBoundingClientRect();
     const touch = touchEvent.touches[0];
+    // Scale touch coordinates to logical game coordinates
     return {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top
+        x: (touch.clientX - rect.left) * (canvasDOM.width / rect.width),
+        y: (touch.clientY - rect.top) * (canvasDOM.height / rect.height)
     };
 }
 
@@ -307,11 +355,13 @@ function update() {
     // If no movement input (dx=0, dy=0), player.lastDx/lastDy remain from last movement/aim.
     // The auto-attack logic will prioritize mouseX/mouseY (updated by touch) for aiming.
 
+    // The auto-attack logic will prioritize mouseX/mouseY (updated by touch) for aiming.
+
     // Keep player within canvas bounds (simple boundary check)
     if (player.x < 0) player.x = 0;
-    if (player.x + player.width > GAME_WIDTH) player.x = GAME_WIDTH - player.width;
+    if (player.x + player.width > currentLogicalGameWidth) player.x = currentLogicalGameWidth - player.width;
     if (player.y < 0) player.y = 0;
-    if (player.y + player.height > GAME_HEIGHT) player.y = GAME_HEIGHT - player.height;
+    if (player.y + player.height > currentLogicalGameHeight) player.y = currentLogicalGameHeight - player.height;
 
     // Particle spawning
     if (particles.length < MAX_PARTICLES && Math.random() < PARTICLE_SPAWN_RATE) {
@@ -464,9 +514,9 @@ function render() {
         ctx.font = '48px "Courier New", Courier, monospace';
         ctx.fillStyle = 'white';
         ctx.textAlign = 'center';
-        ctx.fillText('PAUSED', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30);
+        ctx.fillText('PAUSED', currentLogicalGameWidth / 2, currentLogicalGameHeight / 2 - 30);
         ctx.font = '24px "Courier New", Courier, monospace';
-        ctx.fillText('Tap screen or Press P, Space, or Enter to Resume', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20);
+        ctx.fillText('Tap screen or Press P, Space, or Enter to Resume', currentLogicalGameWidth / 2, currentLogicalGameHeight / 2 + 20);
         
         // Draw a visual for the pause button area while paused
         ctx.strokeStyle = 'white';
@@ -480,16 +530,16 @@ function render() {
 
     if (gameOver) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; // Dark overlay
-        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.fillRect(0, 0, currentLogicalGameWidth, currentLogicalGameHeight);
 
         ctx.font = '48px "Courier New", Courier, monospace';
         ctx.fillStyle = 'red';
         ctx.textAlign = 'center';
-        ctx.fillText('GAME OVER', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30);
+        ctx.fillText('GAME OVER', currentLogicalGameWidth / 2, currentLogicalGameHeight / 2 - 30);
         
         ctx.font = '24px "Courier New", Courier, monospace';
         ctx.fillStyle = 'white';
-        ctx.fillText(`Restarting in ${Math.ceil(gameRestartTimer / 60)}s...`, GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20);
+        ctx.fillText(`Restarting in ${Math.ceil(gameRestartTimer / 60)}s...`, currentLogicalGameWidth / 2, currentLogicalGameHeight / 2 + 20);
     } else {
         // Draw particles
         for (const particle of particles) {
@@ -548,7 +598,8 @@ function render() {
     ctx.fillText(`Level: ${player.level}`, 10, 25);
     
     // XP Bar
-    const xpBarWidth = 200;
+    const barWidth = Math.min(200, currentLogicalGameWidth - 20); // Responsive bar width
+    const xpBarWidth = barWidth;
     const xpBarHeight = 10;
     const xpBarX = 10;
     const xpBarY = 35;
@@ -564,7 +615,8 @@ function render() {
     ctx.fillText(`XP: ${player.xp} / ${player.xpToNextLevel}`, 10, xpBarY + xpBarHeight + 15);
 
     // Draw Health Bar & Text
-    const healthBarWidth = 200;
+    // const healthBarWidth = 200; // Uses responsive barWidth now
+    const healthBarWidth = barWidth;
     const healthBarHeight = 10;
     const healthBarX = 10;
     const healthBarY = xpBarY + xpBarHeight + 20 + 15; // Position below XP info text

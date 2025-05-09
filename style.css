@@ -16,4 +16,10 @@ canvas {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     background-color: #111; /* Dark background for the game area */
+    /* Make canvas responsive within its flex container */
+    display: block; /* Ensures proper sizing behavior */
+    max-width: 100vw;
+    max-height: 100vh;
+    width: auto; /* Scales with aspect ratio based on attributes */
+    height: auto; /* Scales with aspect ratio based on attributes */
 }
