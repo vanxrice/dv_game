@@ -506,11 +506,11 @@ function update() {
 function render() {
     // Clear canvas
     ctx.fillStyle = '#111'; // Background color from CSS
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    ctx.fillRect(0, 0, currentLogicalGameWidth, currentLogicalGameHeight);
 
     if (isPaused && !gameOver) { // Show pause screen, but not if game over is also active
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.fillRect(0, 0, currentLogicalGameWidth, currentLogicalGameHeight);
         ctx.font = '48px "Courier New", Courier, monospace';
         ctx.fillStyle = 'white';
         ctx.textAlign = 'center';
