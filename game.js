@@ -493,6 +493,22 @@ function update() {
                         player.xp -= player.xpToNextLevel;
                         player.xpToNextLevel = Math.floor(player.xpToNextLevel * 1.5);
                         console.log(`Level Up! Reached level ${player.level}. Next level at ${player.xpToNextLevel} XP.`);
+
+                        // Level Up AoE Pulse
+                        const AOE_PULSE_RADIUS = player.swordLength * 0.75; // Example radius
+                        const playerCenterXForPulse = player.x + player.width / 2;
+                        const playerCenterYForPulse = player.y + player.height / 2;
+
+                        for (let k = particles.length - 1; k >= 0; k--) {
+                            const particleForPulse = particles[k];
+                            const dx_pulse = particleForPulse.x - playerCenterXForPulse;
+                            const dy_pulse = particleForPulse.y - playerCenterYForPulse;
+                            const distToPlayerPulse = Math.hypot(dx_pulse, dy_pulse);
+
+                            if (distToPlayerPulse <= AOE_PULSE_RADIUS) {
+                                particles.splice(k, 1); // Remove particle, no XP granted
+                            }
+                        }
                     }
                 }
             }
