@@ -140,9 +140,24 @@ function render() {
         ctx.fill();
     }
 
-    // Draw player (simple rectangle for now)
-    ctx.fillStyle = player.color;
-    ctx.fillRect(player.x, player.y, player.width, player.height);
+    // Draw player (Mega Man-inspired basic sprite)
+    const headHeight = player.height * 0.4;
+    const bodyHeight = player.height * 0.6;
+    const helmetWidth = player.width * 0.8;
+    const helmetXOffset = (player.width - helmetWidth) / 2;
+
+    // Body (darker blue)
+    ctx.fillStyle = '#0077CC'; // A darker blue for the body
+    ctx.fillRect(player.x, player.y + headHeight, player.width, bodyHeight);
+
+    // Helmet/Head (lighter blue/cyan)
+    ctx.fillStyle = '#00AADD'; // A lighter cyan/blue for the helmet
+    ctx.fillRect(player.x + helmetXOffset, player.y, helmetWidth, headHeight);
+
+    // Small detail for "face" area or visor (optional, very simple)
+    ctx.fillStyle = '#FFFFFF'; // White for a small visor-like detail
+    ctx.fillRect(player.x + helmetXOffset + helmetWidth * 0.2, player.y + headHeight * 0.2, helmetWidth * 0.6, headHeight * 0.3);
+
 
     // Draw UI (Level and XP)
     ctx.fillStyle = 'white';
