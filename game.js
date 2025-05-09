@@ -66,7 +66,9 @@ let player = {
 
     // Direction facing (for attack orientation)
     lastDx: 1, // Default facing right (normalized)
-    lastDy: 0
+    lastDy: 0,
+    currentMoveDx: 0, // Current frame's raw movement input X (-1, 0, or 1)
+    currentMoveDy: 0  // Current frame's raw movement input Y (-1, 0, or 1)
 };
 
 // Particle system
@@ -218,6 +220,8 @@ function resetGame() {
     player.attackCooldownTimer = 0;
     player.lastDx = 1; // Default facing right
     player.lastDy = 0;
+    player.currentMoveDx = 0;
+    player.currentMoveDy = 0;
 
     particles = [];
     // Spawn some initial particles
@@ -315,9 +319,13 @@ function update() {
         return; // Skip game logic updates while game over screen is shown
     }
 
+    // Reset current movement direction for this frame
+    player.currentMoveDx = 0;
+    player.currentMoveDy = 0;
+
     // Player movement
-    let dx = 0; // Desired direction x (-1, 0, 1)
-    let dy = 0; // Desired direction y (-1, 0, 1)
+    let dx = 0; // Desired direction x (-1, 0, 1) from input
+    let dy = 0; // Desired direction y (-1, 0, 1) from input
 
     // Keyboard input
     if (keys.w || keys.ArrowUp) dy = -1;
@@ -351,10 +359,15 @@ function update() {
         }
     }
     
+    // Store the final determined dx, dy (raw input direction) for the current frame
+    // These will be used by render() for effects like diagonal tilt.
+    player.currentMoveDx = dx;
+    player.currentMoveDy = dy;
+    
     let finalMoveX = 0;
     let finalMoveY = 0;
 
-    if (dx !== 0 || dy !== 0) {
+    if (dx !== 0 || dy !== 0) { // This condition is equivalent to (player.currentMoveDx !== 0 || player.currentMoveDy !== 0)
         if (dx !== 0 && dy !== 0) { // Moving diagonally
             finalMoveX = (dx * player.speed) / Math.SQRT2;
             finalMoveY = (dy * player.speed) / Math.SQRT2;
@@ -585,15 +598,31 @@ function render() {
         // For now, drawing without rotation:
         // ctx.drawImage(player.sprite, player.x, player.y, player.width, player.height);
 
-        // Draw player sprite with mirroring based on lastDx
+        // Draw player sprite with mirroring and optional diagonal tilt
         ctx.save();
-        if (player.lastDx > 0) { // Facing right, mirror the sprite
-            ctx.translate(player.x + player.width, player.y); // Move to the right edge of the sprite
-            ctx.scale(-1, 1); // Flip horizontally
-            ctx.drawImage(player.sprite, 0, 0, player.width, player.height);
-        } else { // Facing left or no horizontal movement, draw normally
-            ctx.drawImage(player.sprite, player.x, player.y, player.width, player.height);
+        const playerCenterX = player.x + player.width / 2;
+        const playerCenterY = player.y + player.height / 2;
+
+        ctx.translate(playerCenterX, playerCenterY);
+
+        // Mirror based on player.lastDx (general facing direction)
+        if (player.lastDx > 0) { // Facing right
+            ctx.scale(-1, 1);
         }
+        // else: Facing left (player.lastDx < 0) or vertical (player.lastDx == 0), draw normally (not mirrored by this step)
+
+        // Rotate if currently moving diagonally
+        // player.currentMoveDx/Dy hold the raw input direction (-1, 0, or 1) for the current frame
+        if (player.currentMoveDx !== 0 && player.currentMoveDy !== 0) {
+            const TILT_AMOUNT = Math.PI / 12; // 15 degrees tilt
+            // Tilt in the direction of the horizontal component of current movement.
+            // If currentMoveDx is 1 (moving right), positive tilt. If -1 (moving left), negative tilt.
+            // This tilt is applied in the current coordinate system (which might be mirrored).
+            let tilt = player.currentMoveDx * TILT_AMOUNT;
+            ctx.rotate(tilt);
+        }
+
+        ctx.drawImage(player.sprite, -player.width / 2, -player.height / 2, player.width, player.height);
         ctx.restore();
     } else {
         // Fallback drawing if sprite hasn't loaded (optional)
