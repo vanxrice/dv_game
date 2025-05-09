@@ -11,6 +11,7 @@ const LOGICAL_GAME_HEIGHT_LANDSCAPE = 600;
 // Current effective game dimensions and layout state
 let currentLogicalGameWidth = LOGICAL_GAME_WIDTH_LANDSCAPE;
 let currentLogicalGameHeight = LOGICAL_GAME_HEIGHT_LANDSCAPE;
+const LEVEL_UP_PULSE_DURATION = 30; // Frames for the visual pulse (e.g., 0.5s at 60fps)
 let isPortraitLayout = false;
 
 // Game State
@@ -68,7 +69,11 @@ let player = {
     lastDx: 1, // Default facing right (normalized)
     lastDy: 0,
     currentMoveDx: 0, // Current frame's raw movement input X (-1, 0, or 1)
-    currentMoveDy: 0  // Current frame's raw movement input Y (-1, 0, or 1)
+    currentMoveDy: 0,  // Current frame's raw movement input Y (-1, 0, or 1)
+    
+    // Level Up Pulse Visuals
+    isLevelUpPulseActive: false,
+    levelUpPulseTimer: 0
 };
 
 // Particle system
@@ -222,6 +227,8 @@ function resetGame() {
     player.lastDy = 0;
     player.currentMoveDx = 0;
     player.currentMoveDy = 0;
+    player.isLevelUpPulseActive = false;
+    player.levelUpPulseTimer = 0;
 
     particles = [];
     // Spawn some initial particles
@@ -494,8 +501,12 @@ function update() {
                         player.xpToNextLevel = Math.floor(player.xpToNextLevel * 1.5);
                         console.log(`Level Up! Reached level ${player.level}. Next level at ${player.xpToNextLevel} XP.`);
 
-                        // Level Up AoE Pulse
-                        const AOE_PULSE_RADIUS = player.swordLength * 0.75; // Example radius
+                        // Activate visual pulse
+                        player.isLevelUpPulseActive = true;
+                        player.levelUpPulseTimer = LEVEL_UP_PULSE_DURATION;
+
+                        // Level Up AoE Pulse (for clearing particles)
+                        const AOE_PULSE_RADIUS = player.swordLength * 0.75; // This is the effective radius for clearing and visual max
                         const playerCenterXForPulse = player.x + player.width / 2;
                         const playerCenterYForPulse = player.y + player.height / 2;
 
@@ -516,6 +527,14 @@ function update() {
 
         if (player.attackTimer <= 0) {
             player.isAttacking = false;
+        }
+    }
+
+    // Update Level Up Pulse animation timer
+    if (player.isLevelUpPulseActive) {
+        player.levelUpPulseTimer--;
+        if (player.levelUpPulseTimer <= 0) {
+            player.isLevelUpPulseActive = false;
         }
     }
 
@@ -648,6 +667,19 @@ function render() {
         ctx.textAlign = 'center';
         ctx.fillText("?", player.x + player.width/2, player.y + player.height/2 + 5);
 
+    }
+
+    // Draw Level Up Pulse Effect
+    if (player.isLevelUpPulseActive) {
+        const pulseProgress = (LEVEL_UP_PULSE_DURATION - player.levelUpPulseTimer) / LEVEL_UP_PULSE_DURATION;
+        const pulseMaxRadius = player.swordLength * 0.75; // Same as AOE_PULSE_RADIUS for consistency
+        const currentRadius = pulseProgress * pulseMaxRadius;
+        const currentAlpha = 1 - pulseProgress; // Fades out
+
+        ctx.beginPath();
+        ctx.arc(player.x + player.width / 2, player.y + player.height / 2, currentRadius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 191, 255, ${Math.max(0, currentAlpha)})`; // Electric blue, ensure alpha is not negative
+        ctx.fill();
     }
 
     // Draw Sword Attack
