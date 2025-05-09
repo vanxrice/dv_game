@@ -220,11 +220,6 @@ function update() {
         player.attackCooldownTimer--;
     }
 
-    // Attack Cooldown
-    if (player.attackCooldownTimer > 0) {
-        player.attackCooldownTimer--;
-    }
-
     // Auto Attack Initiation
     if (!player.isAttacking && player.attackCooldownTimer <= 0) {
         player.isAttacking = true;
