@@ -11,6 +11,9 @@ const GAME_HEIGHT = 600;
 let gameOver = false;
 let gameRestartTimer = 0;
 const GAME_RESTART_DELAY = 180; // 3 seconds at 60fps
+let isPaused = false;
+let mouseX = 0;
+let mouseY = 0;
 
 // Player state (placeholders)
 let player = {
@@ -68,12 +71,28 @@ const keys = {
     ArrowLeft: false,
     ArrowDown: false,
     ArrowRight: false,
-    ' ': false // For spacebar attack
+    // ' ': false, // Spacebar no longer for direct attack trigger
+    'Enter': false,
+    'p': false 
 };
 
 function handleKeyDown(event) {
     if (keys.hasOwnProperty(event.key)) {
         keys[event.key] = true;
+    }
+
+    // Toggle pause with 'P'
+    if (event.key.toLowerCase() === 'p') {
+        isPaused = !isPaused;
+        console.log(isPaused ? "Game Paused" : "Game Resumed");
+    }
+
+    // Unpause with Space or Enter if game is paused
+    if (isPaused) {
+        if (event.key === ' ' || event.key === 'Enter') {
+            isPaused = false;
+            console.log("Game Resumed by Space/Enter");
+        }
     }
 }
 
@@ -90,6 +109,7 @@ function init() {
 
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
+    canvas.addEventListener('mousemove', handleMouseMove);
 
     resetGame(); // Initialize game state
     gameLoop(); // Start the game loop
@@ -121,8 +141,18 @@ function resetGame() {
     console.log("Game Reset/Started.");
 }
 
+function handleMouseMove(event) {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = event.clientX - rect.left;
+    mouseY = event.clientY - rect.top;
+}
+
 // Update game state
 function update() {
+    if (isPaused) {
+        return; // Skip all game logic if paused
+    }
+
     if (gameOver) {
         gameRestartTimer--;
         if (gameRestartTimer <= 0) {
@@ -190,13 +220,34 @@ function update() {
         player.attackCooldownTimer--;
     }
 
-    // Initiate Attack
-    if (keys[' '] && !player.isAttacking && player.attackCooldownTimer <= 0) {
+    // Attack Cooldown
+    if (player.attackCooldownTimer > 0) {
+        player.attackCooldownTimer--;
+    }
+
+    // Auto Attack Initiation
+    if (!player.isAttacking && player.attackCooldownTimer <= 0) {
         player.isAttacking = true;
         player.attackTimer = player.attackDurationMax;
         player.attackCooldownTimer = player.attackCooldownMax;
+
+        const playerCenterX = player.x + player.width / 2;
+        const playerCenterY = player.y + player.height / 2;
         
-        const baseAngle = Math.atan2(player.lastDy, player.lastDx);
+        let targetDx = player.lastDx; // Default to last movement direction
+        let targetDy = player.lastDy;
+
+        // Prioritize mouse direction
+        const dxToMouse = mouseX - playerCenterX;
+        const dyToMouse = mouseY - playerCenterY;
+        const distToMouse = Math.hypot(dxToMouse, dyToMouse);
+
+        if (distToMouse > 0) { // Use mouse if it provides a valid direction
+            targetDx = dxToMouse / distToMouse;
+            targetDy = dyToMouse / distToMouse;
+        }
+        
+        const baseAngle = Math.atan2(targetDy, targetDx);
         player.attackAngleStart = baseAngle - player.swordSweepAngle / 2;
     }
 
@@ -295,6 +346,18 @@ function render() {
     // Clear canvas
     ctx.fillStyle = '#111'; // Background color from CSS
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+    if (isPaused && !gameOver) { // Show pause screen, but not if game over is also active
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+        ctx.font = '48px "Courier New", Courier, monospace';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.fillText('PAUSED', GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30);
+        ctx.font = '24px "Courier New", Courier, monospace';
+        ctx.fillText('Press P, Space, or Enter to Resume', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 20);
+        return; // Don't render the game scene if paused
+    }
 
     if (gameOver) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; // Dark overlay
