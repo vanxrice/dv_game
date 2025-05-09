@@ -78,7 +78,8 @@ let player = {
 
 // Particle system
 let particles = [];
-const MAX_PARTICLES = 30;
+const BASE_MAX_PARTICLES = 30; // Starting maximum number of particles
+const PARTICLES_PER_LEVEL_INCREASE = 5; // How many more particles allowed per player level
 const PARTICLE_SPAWN_RATE = 0.05; // Chance to spawn a particle each frame
 const PARTICLE_XP_VALUE = 1;
 
@@ -231,9 +232,10 @@ function resetGame() {
     player.levelUpPulseTimer = 0;
 
     particles = [];
-    // Spawn some initial particles
-    for(let i = 0; i < MAX_PARTICLES / 2; i++) {
-        if (particles.length < MAX_PARTICLES) {
+    // Spawn some initial particles, respecting the cap for level 1
+    const initialMaxParticles = BASE_MAX_PARTICLES; // At level 1, currentMax = BASE_MAX_PARTICLES
+    for(let i = 0; i < initialMaxParticles / 2; i++) {
+        if (particles.length < initialMaxParticles) {
             particles.push(createParticle());
         }
     }
@@ -405,7 +407,8 @@ function update() {
     if (player.y + player.height > currentLogicalGameHeight) player.y = currentLogicalGameHeight - player.height;
 
     // Particle spawning
-    if (particles.length < MAX_PARTICLES && Math.random() < PARTICLE_SPAWN_RATE) {
+    const currentMaxParticles = BASE_MAX_PARTICLES + (player.level - 1) * PARTICLES_PER_LEVEL_INCREASE;
+    if (particles.length < currentMaxParticles && Math.random() < PARTICLE_SPAWN_RATE) {
         particles.push(createParticle());
     }
 
