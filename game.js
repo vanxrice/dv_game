@@ -30,8 +30,8 @@ function createParticle() {
     return {
         x: Math.random() * GAME_WIDTH,
         y: Math.random() * GAME_HEIGHT,
-        radius: Math.random() * 2 + 2, // Random size between 2 and 4
-        color: `hsl(${Math.random() * 60 + 180}, 100%, 75%)`, // Shades of blue/cyan/purple for "bright"
+        radius: Math.random() * 3 + 3, // Sludge particles can be a bit larger
+        color: `hsl(${Math.random() * 40 + 70}, ${Math.random() * 30 + 40}%, ${Math.random() * 20 + 20}%)`, // Murky greens/browns
         xpValue: PARTICLE_XP_VALUE
     };
 }
@@ -140,23 +140,28 @@ function render() {
         ctx.fill();
     }
 
-    // Draw player (Mega Man-inspired basic sprite)
-    const headHeight = player.height * 0.4;
-    const bodyHeight = player.height * 0.6;
-    const helmetWidth = player.width * 0.8;
-    const helmetXOffset = (player.width - helmetWidth) / 2;
+    // Draw player (Robot Vacuum)
+    const centerX = player.x + player.width / 2;
+    const centerY = player.y + player.height / 2;
+    const radius = player.width / 2; // Assuming player.width and player.height are similar for a round vacuum
 
-    // Body (darker blue)
-    ctx.fillStyle = '#0077CC'; // A darker blue for the body
-    ctx.fillRect(player.x, player.y + headHeight, player.width, bodyHeight);
+    // Main body of the vacuum (dark grey)
+    ctx.fillStyle = '#444444'; // Dark grey
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Helmet/Head (lighter blue/cyan)
-    ctx.fillStyle = '#00AADD'; // A lighter cyan/blue for the helmet
-    ctx.fillRect(player.x + helmetXOffset, player.y, helmetWidth, headHeight);
+    // Top "sensor" or "lid" detail (slightly lighter grey)
+    ctx.fillStyle = '#666666'; // Lighter grey
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * 0.6, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Small detail for "face" area or visor (optional, very simple)
-    ctx.fillStyle = '#FFFFFF'; // White for a small visor-like detail
-    ctx.fillRect(player.x + helmetXOffset + helmetWidth * 0.2, player.y + headHeight * 0.2, helmetWidth * 0.6, headHeight * 0.3);
+    // A small "light" or "indicator" (optional, bright color)
+    ctx.fillStyle = '#FFD700'; // Gold/Yellow light
+    ctx.beginPath();
+    ctx.arc(centerX, centerY - radius * 0.3, radius * 0.15, 0, Math.PI * 2);
+    ctx.fill();
 
 
     // Draw UI (Level and XP)
