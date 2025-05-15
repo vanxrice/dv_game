@@ -5,7 +5,7 @@
   "main": "game.js",
   "scripts": {
     "cy:open": "cypress open",
-    "cy:run": "cypress run --browser electron"
+    "cy:run": "cypress run --browser electron --headless"
   },
   "keywords": [
     "game",
