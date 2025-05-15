@@ -572,6 +572,15 @@ function update() {
             // Note: XP is gained via sword, not direct collision that causes damage.
         }
     }
+
+    // Expose game state for testing
+    window.gameState.player = player;
+    window.gameState.gameOver = gameOver;
+    window.gameState.isPaused = isPaused;
+    window.gameState.particlesCount = particles.length;
+    window.gameState.currentLogicalGameWidth = currentLogicalGameWidth;
+    window.gameState.currentLogicalGameHeight = currentLogicalGameHeight;
+    window.gameState.keys = keys; // Expose keys for easier input simulation if needed
 }
 
 // Render game
