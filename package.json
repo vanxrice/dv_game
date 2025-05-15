@@ -5,7 +5,8 @@
   "main": "game.js",
   "scripts": {
     "cy:open": "cypress open",
-    "cy:run": "cypress run --browser electron --headless"
+    "cy:run": "cypress run --browser electron --headless",
+    "prepare": "husky"
   },
   "keywords": [
     "game",
@@ -15,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "cypress": "^13.10.0"
+    "cypress": "^13.10.0",
+    "husky": "^9.0.11"
   }
 }
