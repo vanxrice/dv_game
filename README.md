@@ -45,7 +45,7 @@ The development process involved generating code snippets, refactoring, debuggin
 
 ## Future Ideas (Potential Enhancements)
 
-*   Lootbox system at level-up (Vampire Survivors inspiration).
+*   Lootbox system at level-up (inspired by similar arcade survival games).
 *   More varied enemy types (sludge).
 *   Different weapon types or upgrades.
 *   Player abilities or special moves.
