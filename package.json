@@ -1,0 +1,20 @@
+{
+  "name": "diablo-like-game",
+  "version": "1.0.0",
+  "description": "A Diablo-like game, now with Cypress E2E testing.",
+  "main": "game.js",
+  "scripts": {
+    "cy:open": "cypress open",
+    "cy:run": "cypress run --browser electron"
+  },
+  "keywords": [
+    "game",
+    "html5",
+    "javascript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "cypress": "^13.10.0"
+  }
+}
