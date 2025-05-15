@@ -1,7 +1,7 @@
 {
-  "name": "diablo-like-game",
+  "name": "dv-game",
   "version": "1.0.0",
-  "description": "A Diablo-like game, now with Cypress E2E testing.",
+  "description": "A dv game, now with Cypress E2E testing.",
   "main": "game.js",
   "scripts": {
     "cy:open": "cypress open",
