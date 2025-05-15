@@ -775,5 +775,7 @@ function gameLoop() {
 // Expose game state for testing
 window.gameState = {};
 
-// Start the game
-init();
+// Start the game if gameCanvas exists, otherwise assume test environment or manual init
+if (document.getElementById('gameCanvas')) {
+    init();
+}
