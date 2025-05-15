@@ -763,5 +763,8 @@ function gameLoop() {
     requestAnimationFrame(gameLoop); // For smooth animation
 }
 
+// Expose game state for testing
+window.gameState = {};
+
 // Start the game
 init();
