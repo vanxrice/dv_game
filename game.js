@@ -81,16 +81,25 @@ let particles = [];
 const BASE_MAX_PARTICLES = 30; // Starting maximum number of particles
 const PARTICLES_PER_LEVEL_INCREASE = 5; // How many more particles allowed per player level
 const PARTICLE_SPAWN_RATE = 0.05; // Chance to spawn a particle each frame
-const PARTICLE_XP_VALUE = 1;
+// const PARTICLE_XP_VALUE = 1; // No longer a global constant, will be dynamic
 
-function createParticle() {
+function createParticle(x, y, size = 1) { // Added x, y, size parameters with default size
+    const newRadius = (size * 2) + 3;
+    const newXpValue = size;
+    const newDamage = size;
+    // Speed could be adjusted based on size, e.g., larger particles are slower
+    const speed = Math.max(0.25, (Math.random() * 0.75 + 0.25) / (size * 0.5));
+
+
     return {
-        x: Math.random() * currentLogicalGameWidth,
-        y: Math.random() * currentLogicalGameHeight,
-        radius: Math.random() * 3 + 3, // Sludge particles can be a bit larger
-        color: `hsl(${Math.random() * 40 + 70}, ${Math.random() * 30 + 40}%, ${Math.random() * 20 + 20}%)`, // Murky greens/browns
-        xpValue: PARTICLE_XP_VALUE,
-        speed: Math.random() * 0.75 + 0.25 // Sludge speed
+        x: x !== undefined ? x : Math.random() * currentLogicalGameWidth,
+        y: y !== undefined ? y : Math.random() * currentLogicalGameHeight,
+        size: size,
+        damage: newDamage,
+        radius: newRadius,
+        color: `hsl(${Math.random() * 40 + 70}, ${Math.random() * 30 + 40}%, ${Math.random() * 20 + (20 * size)}%)`, // Color might change with size
+        xpValue: newXpValue,
+        speed: speed
     };
 }
 
@@ -425,6 +434,48 @@ function update() {
         }
     }
 
+    // Particle-Particle Combination Logic
+    const MAX_PARTICLE_SIZE = 4;
+    for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+            const p1 = particles[i];
+            const p2 = particles[j];
+
+            const dx = p1.x - p2.x;
+            const dy = p1.y - p2.y;
+            const distance = Math.hypot(dx, dy);
+
+            if (distance < p1.radius + p2.radius) {
+                // Collision detected
+                const combinedSize = Math.min(MAX_PARTICLE_SIZE, p1.size + p2.size);
+                const midX = (p1.x + p2.x) / 2;
+                const midY = (p1.y + p2.y) / 2;
+
+                // Store properties before removal (though not strictly needed here as we use them directly)
+                // const p1Size = p1.size;
+                // const p2Size = p2.size;
+
+                // Create the new combined particle
+                const newParticle = createParticle(midX, midY, combinedSize);
+                
+                // Remove original particles. Iterate backwards to avoid index issues.
+                // Order matters here: remove the one with the larger index first.
+                particles.splice(j, 1); // j is always > i
+                particles.splice(i, 1);
+
+                // Add the new particle
+                particles.push(newParticle);
+
+                // Restart or adjust loops to account for changes in the array
+                // Easiest way for now: restart the outer loop.
+                // This is not the most performant but is safer.
+                i = -1; // Will be incremented to 0 by the loop
+                break; // Exit inner loop
+            }
+        }
+    }
+
+
     // Attack Cooldown
     if (player.attackCooldownTimer > 0) {
         player.attackCooldownTimer--;
@@ -555,10 +606,10 @@ function update() {
 
         // Check for collision between player (circle) and particle (circle)
         if (distanceToParticle < playerBodyRadius + particle.radius) {
-            player.health -= 1; // Sludge deals 1 damage
+            player.health -= particle.damage; // Use particle's damage property
             particles.splice(i, 1); // Remove collided particle
 
-            console.log(`Player hit by sludge! Health: ${player.health}`);
+            console.log(`Player hit by sludge! Damage: ${particle.damage}, Health: ${player.health}`);
 
             if (player.health <= 0) {
                 player.health = 0; // Prevent health from displaying as negative
@@ -577,7 +628,7 @@ function update() {
     window.gameState.player = player;
     window.gameState.gameOver = gameOver;
     window.gameState.isPaused = isPaused;
-    window.gameState.particlesCount = particles.length;
+    window.gameState.particles = particles; // Expose the full particles array
     window.gameState.currentLogicalGameWidth = currentLogicalGameWidth;
     window.gameState.currentLogicalGameHeight = currentLogicalGameHeight;
     window.gameState.keys = keys; // Expose keys for easier input simulation if needed
