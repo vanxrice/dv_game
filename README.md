@@ -23,6 +23,7 @@ DV_Game is a 2D top-down arcade-style game where you control a heroic robot vacu
 *   **Leveling Up:**
     *   Collect XP by destroying sludge with your sword.
     *   When you gain enough XP, you will level up, increasing the XP required for the next level.
+    *   Upon leveling up, you will be presented with a choice of upgrades to enhance your vacuum's capabilities.
 *   **Health:**
     *   You start with a set amount of health.
     *   If your health reaches zero, the game is over.
@@ -33,6 +34,7 @@ DV_Game is a 2D top-down arcade-style game where you control a heroic robot vacu
 
 1.  Clone or download this repository.
 2.  Open the `index.html` file in a modern web browser.
+    *   Alternatively, for running with the testing environment, you can use a local HTTP server. After installing development dependencies (`npm install`), you can often start one with a command like `npx http-server -p 8080` and then navigate to `http://localhost:8080/index.html`.
 
 ## How to Play Online
 
@@ -45,12 +47,46 @@ This game was developed iteratively with the assistance of Google's AI model.
 
 *   **AI Model:** Gemini 1.5 Pro (model `gemini-1.5-pro-001`)
 *   **Core Technologies:** HTML, CSS, and vanilla JavaScript.
+*   **Testing:** The project utilizes Playwright for End-to-End (E2E) testing. Testing was migrated from Cypress to Playwright.
 
 The development process involved generating code snippets, refactoring, debugging, and implementing game mechanics based on prompts and discussions with the AI.
 
+## Testing
+
+This project uses Playwright for its End-to-End (E2E) testing strategy. The tests are designed to cover core game mechanics, including:
+*   Player initialization and controls (pause/resume).
+*   Particle behavior (collision, combination).
+*   Player damage and health systems.
+*   The power-up and upgrade system functionality.
+
+### Running Tests Locally
+
+To run the tests locally, follow these steps:
+
+1.  **Install Dependencies:**
+    Ensure you have Node.js and npm installed. Then, install the project dependencies (including Playwright, `http-server` for the test web server, and Husky):
+    ```bash
+    npm install
+    ```
+
+2.  **Run Tests (Headless):**
+    This command will execute all Playwright tests in headless mode. The test server will be started automatically as configured in `playwright.config.js`.
+    ```bash
+    npm test
+    ```
+
+3.  **Run Tests (Headed):**
+    To run tests in a visible browser window (headed mode), use:
+    ```bash
+    npm run test:headed
+    ```
+
+### Pre-commit Hook
+
+The project uses Husky to manage pre-commit hooks. A pre-commit hook is configured to automatically run `npm test` before each commit. If the tests fail, the commit will be aborted, helping to ensure that broken code is not committed to the repository.
+
 ## Future Ideas (Potential Enhancements)
 
-*   Lootbox system at level-up (inspired by similar arcade survival games).
 *   More varied enemy types (sludge).
 *   Different weapon types or upgrades.
 *   Player abilities or special moves.

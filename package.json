@@ -1,12 +1,12 @@
 {
   "name": "dv-game",
   "version": "1.0.0",
-  "description": "A dv game, now with Cypress E2E testing.",
+  "description": "A dv game, now with Playwright E2E testing.",
   "main": "game.js",
   "scripts": {
-    "cy:open": "cypress open",
-    "cy:run": "cypress run --browser electron --headless",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
   },
   "keywords": [
     "game",
@@ -16,7 +16,10 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "cypress": "^13.10.0",
-    "husky": "^9.0.11"
+    "http-server": "^14.1.1",
+    "husky": "^9.0.11",
+    "playwright": "^1.52.0"
   }
 }
