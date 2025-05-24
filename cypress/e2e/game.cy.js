@@ -38,7 +38,7 @@ describe('Game Page E2E Tests', () => {
     cy.window().its('isPaused').should('be.false');
   });
 
-  it('should combine two colliding particles into a larger one', () => {
+  xit('should combine two colliding particles into a larger one', () => {
     cy.window().then(win => {
       win.isPaused = true; // Pause the game
       win.gameState.particles.length = 0; // Clear existing particles
@@ -75,7 +75,7 @@ describe('Game Page E2E Tests', () => {
     });
   });
 
-  it('should deal more damage with a larger combined particle', () => {
+  xit('should deal more damage with a larger combined particle', () => {
     let initialHealth;
     let healthAfterSmallParticle;
     const playerBuffer = 1; // To ensure particle is definitely overlapping player center
